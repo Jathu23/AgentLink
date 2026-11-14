@@ -31,21 +31,20 @@ Use the same `AGENTLINK_DB` for these commands as for `start`.
 
 ## Set up a laptop
 
-1. Install the plugin:
-   ```bash
-   claude plugin marketplace add Jathu23/AgentLink
-   claude plugin install agentlink@agentlink
-   ```
-2. Put the Hub address and this agent's token in `~/.agentlink/config.json` (never in a repo):
-   ```json
-   { "hub": "ws://<hub-host>:8800/ws", "token": "<token from add-agent>" }
-   ```
-3. Start Claude Code in a terminal:
-   ```bash
-   claude --dangerously-load-development-channels plugin:agentlink@agentlink
-   ```
+Needs Node 22.13 or later, Claude Code and git. In PowerShell:
 
-The Link logs to `~/.agentlink/link.log`.
+```powershell
+git clone https://github.com/Jathu23/AgentLink.git
+.AgentLinkkitinstall.ps1 -Hub wss://<hub-host>/ws -Token <token from add-agent>
+```
+
+The script installs the plugin from the clone and saves the Hub address and token in `~/.agentlink/config.json` (never in a repo). Then start Claude Code in a terminal:
+
+```powershell
+claude --dangerously-load-development-channels plugin:agentlink@agentlink
+```
+
+To update later: `git pull` in the clone and run the script again. The Link logs to `~/.agentlink/link.log`.
 
 ## Develop
 
