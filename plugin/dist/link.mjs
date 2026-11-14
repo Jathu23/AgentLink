@@ -22276,7 +22276,8 @@ var ClientFrame = external_exports.discriminatedUnion("op", [
   // `ref` is the Link's own correlation id for matching the `sent` / `rejected` reply.
   external_exports.object({ op: external_exports.literal("send"), ref: external_exports.string().min(1).max(40), msg: external_exports.unknown() }).strict(),
   external_exports.object({ op: external_exports.literal("ack"), id: MessageId }).strict(),
-  external_exports.object({ op: external_exports.literal("presence"), state: external_exports.enum(PRESENCE_STATES), task: RefId.optional() }).strict()
+  external_exports.object({ op: external_exports.literal("presence"), state: external_exports.enum(PRESENCE_STATES), task: RefId.optional() }).strict(),
+  external_exports.object({ op: external_exports.literal("ping") }).strict()
 ]);
 var HubFrame = external_exports.discriminatedUnion("op", [
   external_exports.object({
@@ -22296,8 +22297,10 @@ var HubFrame = external_exports.discriminatedUnion("op", [
     /** False when the receiver is offline and the message is stored for later. */
     online: external_exports.boolean()
   }).strict(),
-  external_exports.object({ op: external_exports.literal("rejected"), ref: external_exports.string().optional(), code: external_exports.string(), reason: external_exports.string() }).strict()
+  external_exports.object({ op: external_exports.literal("rejected"), ref: external_exports.string().optional(), code: external_exports.string(), reason: external_exports.string() }).strict(),
+  external_exports.object({ op: external_exports.literal("pong") }).strict()
 ]);
+var PING_TEXT = '{"op":"ping"}';
 
 // node_modules/ws/wrapper.mjs
 var import_stream = __toESM(require_stream(), 1);
@@ -22369,9 +22372,20 @@ var HubClient = class {
     const ws = new import_websocket.default(this.opts.url);
     this.ws = ws;
     ws.on("open", () => ws.send(JSON.stringify({ op: "hello", v: PROTOCOL_VERSION, token: this.opts.token })));
-    ws.on("message", (data) => void this.onMessage(ws, String(data)));
+    const pingMs = this.opts.pingMs ?? 3e4;
+    let lastFrame = Date.now();
+    const pinger = setInterval(() => {
+      if (Date.now() - lastFrame > pingMs * 2.5) return ws.terminate();
+      if (ws.readyState === ws.OPEN) ws.send(PING_TEXT);
+    }, pingMs);
+    pinger.unref();
+    ws.on("message", (data) => {
+      lastFrame = Date.now();
+      void this.onMessage(ws, String(data));
+    });
     ws.on("error", (err) => this.log(`socket error: ${err.message}`));
     ws.on("close", (code) => {
+      clearInterval(pinger);
       this.online = false;
       for (const waiter of [...this.waiters.values()]) waiter({ ok: false, code: "disconnected", reason: "the connection to the Hub dropped" });
       if (this.stopped) return;
@@ -22413,6 +22427,8 @@ var HubClient = class {
         if (ws.readyState === ws.OPEN) ws.send(JSON.stringify({ op: "ack", id: msg.id }));
         return;
       }
+      case "pong":
+        return;
       case "sent":
         return this.waiters.get(frame.ref)?.({ ok: true, state: frame.online ? "delivered" : "stored" });
       case "rejected":

@@ -59,6 +59,11 @@ export class Hub {
     for (const msg of pending) conn.send({ op: 'deliver', msg })
   }
 
+  /** Re-registers a connection that outlived this Hub object (a host that sleeps between messages). Sends nothing. */
+  restore(agent: Agent, conn: Conn): void {
+    this.conns.set(agent.id, conn)
+  }
+
   detach(agent: Agent, conn: Conn): void {
     if (this.conns.get(agent.id) !== conn) return
     this.conns.delete(agent.id)
@@ -71,6 +76,7 @@ export class Hub {
     const parsed = ClientFrame.safeParse(raw)
     if (!parsed.success) return conn.send({ op: 'rejected', code: 'invalid', reason: 'unknown or malformed frame' })
     const frame = parsed.data
+    if (frame.op === 'ping') return conn.send({ op: 'pong' })
     this.store.updateAgent(agent.id, { lastSeen: this.now().toISOString() })
     switch (frame.op) {
       case 'hello':

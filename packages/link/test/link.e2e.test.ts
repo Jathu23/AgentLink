@@ -8,7 +8,8 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
-import { Hub, Store } from '@agentlink/hub'
+import { Hub } from '@agentlink/hub'
+import { openStore } from '@agentlink/hub/node'
 import { startServer } from '@agentlink/hub/server'
 import { HubClient } from '../src/client.ts'
 
@@ -21,7 +22,7 @@ const entries: [string, string[]][] = [
 ]
 
 for (const [name, args] of entries) test(`the Link process (${name}): the signal tool sends, and an incoming signal is pushed as a channel event`, { skip: name === 'plugin bundle' && !existsSync(bundle) }, async () => {
-  const store = new Store()
+  const store = openStore()
   const deskToken = store.addAgent({ id: 'desk', space: 'backend', role: 'lead' })
   const memberToken = store.addAgent({ id: 'laptop2', space: 'backend', role: 'member' })
   const hub = new Hub(store)

@@ -10,3 +10,5 @@ dist/
 
 # The plugin ships its bundled Link, so this one dist folder is committed.
 !plugin/dist/
+.wrangler/
+.dev.vars

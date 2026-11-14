@@ -2,7 +2,7 @@
 // incoming signal to the session exactly once, and confirms it only after the session has it.
 
 import { WebSocket } from 'ws'
-import { checkSend, HubFrame, PROTOCOL_VERSION, type Envelope, type Role } from '@agentlink/protocol'
+import { checkSend, HubFrame, PING_TEXT, PROTOCOL_VERSION, type Envelope, type Role } from '@agentlink/protocol'
 
 export type SendResult =
   /** delivered: receiver online. stored: receiver offline, the Hub keeps it. queued: Hub not reachable, sent on reconnect. */
@@ -17,6 +17,8 @@ export type HubClientOptions = {
   retryMs?: number
   maxRetryMs?: number
   replyTimeoutMs?: number
+  /** How often to ping the Hub. A connection with no frame for 2.5 pings is treated as dead and reopened. */
+  pingMs?: number
 }
 
 const QUEUE_LIMIT = 20
@@ -86,9 +88,21 @@ export class HubClient {
     const ws = new WebSocket(this.opts.url)
     this.ws = ws
     ws.on('open', () => ws.send(JSON.stringify({ op: 'hello', v: PROTOCOL_VERSION, token: this.opts.token })))
-    ws.on('message', (data) => void this.onMessage(ws, String(data)))
+    const pingMs = this.opts.pingMs ?? 30_000
+    let lastFrame = Date.now()
+    // A sleeping laptop or a dropped tunnel leaves a socket that looks open; the ping finds out.
+    const pinger = setInterval(() => {
+      if (Date.now() - lastFrame > pingMs * 2.5) return ws.terminate()
+      if (ws.readyState === ws.OPEN) ws.send(PING_TEXT)
+    }, pingMs)
+    pinger.unref()
+    ws.on('message', (data) => {
+      lastFrame = Date.now()
+      void this.onMessage(ws, String(data))
+    })
     ws.on('error', (err) => this.log(`socket error: ${err.message}`))
     ws.on('close', (code) => {
+      clearInterval(pinger)
       this.online = false
       for (const waiter of [...this.waiters.values()]) waiter({ ok: false, code: 'disconnected', reason: 'the connection to the Hub dropped' })
       if (this.stopped) return
@@ -131,6 +145,8 @@ export class HubClient {
         if (ws.readyState === ws.OPEN) ws.send(JSON.stringify({ op: 'ack', id: msg.id }))
         return
       }
+      case 'pong':
+        return
       case 'sent':
         return this.waiters.get(frame.ref)?.({ ok: true, state: frame.online ? 'delivered' : 'stored' })
       case 'rejected':

@@ -2,7 +2,8 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { WebSocket } from 'ws'
 import type { HubFrame } from '@agentlink/protocol'
-import { Hub, Store, type Agent, type Conn } from '../src/hub.ts'
+import { Hub, type Agent, type Conn } from '../src/hub.ts'
+import { openStore } from '../src/node-store.ts'
 import { startServer } from '../src/server.ts'
 
 const lead: Agent = { id: 'desk', space: 'backend', role: 'lead' }
@@ -11,7 +12,7 @@ const abinaia: Agent = { id: 'abinaia', space: 'backend', role: 'member' }
 const outsider: Agent = { id: 'webdev', space: 'frontend', role: 'member' }
 
 function setup() {
-  const store = new Store()
+  const store = openStore()
   const tokens = Object.fromEntries([lead, laptop2, abinaia, outsider].map((a) => [a.id, store.addAgent(a)]))
   return { store, tokens, hub: new Hub(store) }
 }

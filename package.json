@@ -12,14 +12,18 @@
   ],
   "scripts": {
     "test": "node --import tsx --test \"packages/*/test/*.test.ts\"",
-    "typecheck": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json && tsc -p cloudflare/tsconfig.json",
     "build:plugin": "esbuild packages/link/src/link.ts --bundle --platform=node --format=esm --target=node22 --outfile=plugin/dist/link.mjs --log-level=warning \"--banner:js=import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);\"",
-    "pretest": "npm run build:plugin"
+    "pretest": "npm run build:plugin",
+    "hub:dev": "wrangler dev --config cloudflare/wrangler.jsonc",
+    "hub:deploy": "wrangler deploy --config cloudflare/wrangler.jsonc"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261114.1",
     "@types/node": "^22.10.0",
     "esbuild": "^0.28.2",
     "tsx": "^4.19.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "wrangler": "^4.162.0"
   }
 }

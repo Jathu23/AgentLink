@@ -9,12 +9,13 @@
 import { mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { AgentId, isReservedAgentId, ROLES, SpaceId, type Role } from '@agentlink/protocol'
-import { Hub, Store } from './hub.ts'
+import { Hub } from './hub.ts'
+import { openStore } from './node-store.ts'
 import { startServer } from './server.ts'
 
 const dbPath = path.resolve(process.env.AGENTLINK_DB ?? '.agentlink/hub.sqlite')
 mkdirSync(path.dirname(dbPath), { recursive: true })
-const store = new Store(dbPath)
+const store = openStore(dbPath)
 
 const fail = (message: string): never => {
   console.error(message)

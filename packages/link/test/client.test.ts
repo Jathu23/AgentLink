@@ -1,7 +1,8 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import type { Envelope } from '@agentlink/protocol'
-import { Hub, Store } from '@agentlink/hub'
+import { Hub } from '@agentlink/hub'
+import { openStore } from '@agentlink/hub/node'
 import { startServer, type RunningServer } from '@agentlink/hub/server'
 import { HubClient } from '../src/client.ts'
 
@@ -14,7 +15,7 @@ async function until(cond: () => boolean, what: string, ms = 3000): Promise<void
 }
 
 async function world(port = 0) {
-  const store = new Store()
+  const store = openStore()
   const tokens = {
     desk: store.addAgent({ id: 'desk', space: 'backend', role: 'lead' }),
     laptop2: store.addAgent({ id: 'laptop2', space: 'backend', role: 'member' }),

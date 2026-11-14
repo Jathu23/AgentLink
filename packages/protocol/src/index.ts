@@ -213,6 +213,7 @@ export const ClientFrame = z.discriminatedUnion('op', [
   z.object({ op: z.literal('send'), ref: z.string().min(1).max(40), msg: z.unknown() }).strict(),
   z.object({ op: z.literal('ack'), id: MessageId }).strict(),
   z.object({ op: z.literal('presence'), state: z.enum(PRESENCE_STATES), task: RefId.optional() }).strict(),
+  z.object({ op: z.literal('ping') }).strict(),
 ])
 export type ClientFrame = z.infer<typeof ClientFrame>
 
@@ -240,5 +241,13 @@ export const HubFrame = z.discriminatedUnion('op', [
     })
     .strict(),
   z.object({ op: z.literal('rejected'), ref: z.string().optional(), code: z.string(), reason: z.string() }).strict(),
+  z.object({ op: z.literal('pong') }).strict(),
 ])
 export type HubFrame = z.infer<typeof HubFrame>
+
+/**
+ * Keepalive. The Link sends exactly PING_TEXT and expects exactly PONG_TEXT, so a host that
+ * can answer a fixed string without waking the Hub (Cloudflare) may do so.
+ */
+export const PING_TEXT = '{"op":"ping"}'
+export const PONG_TEXT = '{"op":"pong"}'

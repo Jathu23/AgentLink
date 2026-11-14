@@ -6,7 +6,9 @@
   "description": "Stores signals, pushes them to connected Links, keeps them while a laptop is off",
   "exports": {
     ".": "./src/hub.ts",
-    "./server": "./src/server.ts"
+    "./server": "./src/server.ts",
+    "./node": "./src/node-store.ts",
+    "./page": "./src/page.ts"
   },
   "scripts": {
     "start": "node --import tsx src/cli.ts start"

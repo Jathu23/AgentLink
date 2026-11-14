@@ -29,6 +29,26 @@ node --import tsx packages/hub/src/cli.ts add-viewer jathu backend
 
 Use the same `AGENTLINK_DB` for these commands as for `start`.
 
+## Run the Hub on Cloudflare (free plan)
+
+The same Hub rules run in a Durable Object (`cloudflare/src/worker.ts`).
+
+```bash
+npx wrangler login
+npm run hub:deploy                                   # prints the https://...workers.dev address
+npx wrangler secret put ADMIN_KEY --config cloudflare/wrangler.jsonc   # a long random string, keep it private
+```
+
+Register agents and viewers with the admin script (set `AGENTLINK_URL` to the workers.dev address and `AGENTLINK_ADMIN_KEY` to the secret):
+
+```bash
+node cloudflare/admin.mjs add-agent desk backend lead
+node cloudflare/admin.mjs add-viewer jathu backend
+node cloudflare/admin.mjs remove-agent laptop2      # then add-agent again for a new token
+```
+
+`node --import tsx cloudflare/smoke.mts` checks a running Hub end to end with its own test agents.
+
 ## Set up a laptop
 
 Needs Node 22.13 or later, Claude Code and git. In PowerShell:

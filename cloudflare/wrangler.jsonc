@@ -1,0 +1,12 @@
+{
+  "name": "agentlink-hub",
+  "main": "src/worker.ts",
+  "compatibility_date": "2025-10-01",
+  // node:crypto is used to hash tokens.
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": {
+    "bindings": [{ "name": "HUB", "class_name": "HubObject" }]
+  },
+  // SQLite-backed Durable Objects are the kind available on the free plan.
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["HubObject"] }]
+}
