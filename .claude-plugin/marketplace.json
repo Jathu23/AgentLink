@@ -1,0 +1,12 @@
+{
+  "name": "agentlink",
+  "description": "AgentLink plugin for Claude Code",
+  "owner": { "name": "Jathu23" },
+  "plugins": [
+    {
+      "name": "agentlink",
+      "source": "./plugin",
+      "description": "Live signals between Claude Code agents"
+    }
+  ]
+}

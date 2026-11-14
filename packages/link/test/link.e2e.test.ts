@@ -2,7 +2,7 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync } from 'node:fs'
+import { existsSync, mkdtempSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -14,7 +14,13 @@ import { HubClient } from '../src/client.ts'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
-test('the Link process: the signal tool sends, and an incoming signal is pushed as a channel event', async () => {
+const bundle = path.join(here, '../../../plugin/dist/link.mjs')
+const entries: [string, string[]][] = [
+  ['source', ['--import', 'tsx', path.join(here, '../src/link.ts')]],
+  ['plugin bundle', [bundle]],
+]
+
+for (const [name, args] of entries) test(`the Link process (${name}): the signal tool sends, and an incoming signal is pushed as a channel event`, { skip: name === 'plugin bundle' && !existsSync(bundle) }, async () => {
   const store = new Store()
   const deskToken = store.addAgent({ id: 'desk', space: 'backend', role: 'lead' })
   const memberToken = store.addAgent({ id: 'laptop2', space: 'backend', role: 'member' })
@@ -32,7 +38,7 @@ test('the Link process: the signal tool sends, and an incoming signal is pushed 
     await session.connect(
       new StdioClientTransport({
         command: process.execPath,
-        args: ['--import', 'tsx', path.join(here, '../src/link.ts')],
+        args,
         cwd: path.join(here, '../../..'),
         env: { ...(process.env as Record<string, string>), AGENTLINK_HUB: url, AGENTLINK_TOKEN: memberToken, USERPROFILE: home, HOME: home },
       }),
