@@ -15,6 +15,7 @@ type Attachment = { agent?: Agent; at: number }
 // so the object stays asleep, and a socket with no ping for this long is a laptop that went away.
 const STALE_MS = 90_000
 const MAX_FRAME = 4096
+const ADMIN_OK = 'x-agentlink-admin-ok'
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } })
@@ -96,10 +97,9 @@ export class HubObject extends DurableObject<Env> {
     return new Response(null, { status: 404 })
   }
 
-  /** Registering agents and viewers. Needs the ADMIN_KEY secret; with no secret set, admin is off. */
+  /** Registering agents and viewers. The Worker entry has already checked the admin key. */
   private async admin(request: Request, url: URL): Promise<Response> {
-    const key = this.env.ADMIN_KEY
-    if (!key || key.length < 20 || request.headers.get('authorization') !== `Bearer ${key}`) return new Response(null, { status: 401 })
+    if (request.headers.get(ADMIN_OK) !== '1') return new Response(null, { status: 401 })
 
     const removed = /^\/admin\/agents\/([a-z0-9-]+)$/.exec(url.pathname)
     if (request.method === 'DELETE' && removed) {
@@ -162,7 +162,17 @@ export class HubObject extends DurableObject<Env> {
 }
 
 export default {
-  fetch(request: Request, env: Env): Promise<Response> {
-    return env.HUB.get(env.HUB.idFromName('hub')).fetch(request)
+  async fetch(request: Request, env: Env): Promise<Response> {
+    // The admin key is checked here, in the stateless entry, which always sees the current secret.
+    // The object trusts only the marker header, and a caller cannot set that header itself.
+    const headers = new Headers(request.headers)
+    headers.delete(ADMIN_OK)
+    if (new URL(request.url).pathname.startsWith('/admin/')) {
+      const key = env.ADMIN_KEY
+      // With no secret set, admin is off.
+      if (!key || key.length < 20 || headers.get('authorization') !== `Bearer ${key}`) return new Response(null, { status: 401 })
+      headers.set(ADMIN_OK, '1')
+    }
+    return env.HUB.get(env.HUB.idFromName('hub')).fetch(new Request(request, { headers }))
   },
 } satisfies ExportedHandler<Env>
