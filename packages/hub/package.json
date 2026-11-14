@@ -1,0 +1,18 @@
+{
+  "name": "@agentlink/hub",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Stores signals, pushes them to connected Links, keeps them while a laptop is off",
+  "exports": "./src/hub.ts",
+  "scripts": {
+    "start": "node --import tsx src/cli.ts start"
+  },
+  "dependencies": {
+    "@agentlink/protocol": "*",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.13"
+  }
+}
