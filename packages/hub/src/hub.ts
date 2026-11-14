@@ -70,13 +70,20 @@ export class Hub {
     this.store.updateAgent(agent.id, { lastSeen: this.now().toISOString() })
   }
 
-  onFrame(agent: Agent, raw: unknown): void {
-    const conn = this.conns.get(agent.id)
+  /** A send-only connection: it may send, but it gets no deliveries and does not count as online. */
+  welcomeSender(agent: Agent, conn: Conn): void {
+    conn.send({ op: 'welcome', v: PROTOCOL_VERSION, agent: agent.id, space: agent.space, role: agent.role, pending: 0 })
+  }
+
+  /** `via` is passed for a send-only connection, which is not the agent's registered one. */
+  onFrame(agent: Agent, raw: unknown, via?: Conn): void {
+    const conn = via ?? this.conns.get(agent.id)
     if (!conn) return
     const parsed = ClientFrame.safeParse(raw)
     if (!parsed.success) return conn.send({ op: 'rejected', code: 'invalid', reason: 'unknown or malformed frame' })
     const frame = parsed.data
     if (frame.op === 'ping') return conn.send({ op: 'pong' })
+    if (via && frame.op !== 'send') return
     this.store.updateAgent(agent.id, { lastSeen: this.now().toISOString() })
     switch (frame.op) {
       case 'hello':

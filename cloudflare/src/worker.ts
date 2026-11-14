@@ -9,7 +9,7 @@ import { PAGE } from '@agentlink/hub/page'
 
 type Env = { HUB: DurableObjectNamespace<HubObject>; ADMIN_KEY?: string }
 /** Kept on each socket so it survives the object going to sleep. */
-type Attachment = { agent?: Agent; at: number }
+type Attachment = { agent?: Agent; sendOnly?: boolean; at: number }
 
 // The Link pings every 30 seconds. Cloudflare answers the ping itself and records the time,
 // so the object stays asleep, and a socket with no ping for this long is a laptop that went away.
@@ -32,8 +32,8 @@ export class HubObject extends DurableObject<Env> {
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair(PING_TEXT, PONG_TEXT))
     // After a sleep the sockets are still open but this object is new: tell the Hub who is connected.
     for (const ws of ctx.getWebSockets()) {
-      const agent = (ws.deserializeAttachment() as Attachment | null)?.agent
-      if (agent) this.hub.restore(agent, this.conn(ws))
+      const attachment = ws.deserializeAttachment() as Attachment | null
+      if (attachment?.agent && !attachment.sendOnly) this.hub.restore(attachment.agent, this.conn(ws))
     }
   }
 
@@ -142,13 +142,15 @@ export class HubObject extends DurableObject<Env> {
       return this.end(ws, 4400, 'not json')
     }
     const attachment = ws.deserializeAttachment() as Attachment | null
-    if (attachment?.agent) return this.hub.onFrame(attachment.agent, raw)
+    if (attachment?.agent) return this.hub.onFrame(attachment.agent, raw, attachment.sendOnly ? this.conn(ws) : undefined)
 
     const hello = ClientFrame.safeParse(raw)
     const agent = hello.success && hello.data.op === 'hello' ? this.hub.auth(hello.data.token) : undefined
     if (!agent) return this.end(ws, 4401, 'bad token')
-    ws.serializeAttachment({ agent, at: Date.now() } satisfies Attachment)
-    this.hub.attach(agent, this.conn(ws))
+    const sendOnly = hello.success && hello.data.op === 'hello' && hello.data.mode === 'send'
+    ws.serializeAttachment({ agent, sendOnly, at: Date.now() } satisfies Attachment)
+    if (sendOnly) this.hub.welcomeSender(agent, this.conn(ws))
+    else this.hub.attach(agent, this.conn(ws))
   }
 
   async webSocketClose(ws: WebSocket, code: number): Promise<void> {

@@ -49,11 +49,15 @@ const mcp = new Server(
 )
 
 const config = loadConfig()
+// Only a terminal session started with the channel flag can show a pushed signal. The start
+// script sets AGENTLINK_RECEIVE=1 for it. Every other session (the VS Code panel) only sends.
+const receive = process.env.AGENTLINK_RECEIVE === '1'
 const client =
   config.hub && config.token
     ? new HubClient({
         url: config.hub,
         token: config.token,
+        mode: receive ? 'full' : 'send',
         log,
         onDeliver: (env) =>
           mcp.notification({
@@ -106,5 +110,5 @@ mcp.setRequestHandler(CallToolRequestSchema, async (req) => {
 })
 
 await mcp.connect(new StdioServerTransport())
-log(client ? `link started, hub ${config.hub}` : 'link started without config')
+log(client ? `link started (${receive ? 'receiving' : 'send only'}), hub ${config.hub}` : 'link started without config')
 client?.start()

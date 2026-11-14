@@ -208,7 +208,9 @@ export type PresenceState = (typeof PRESENCE_STATES)[number]
 /** Link -> Hub */
 export const ClientFrame = z.discriminatedUnion('op', [
   // The token travels in the first frame, not in the URL, so it never lands in a host's access log.
-  z.object({ op: z.literal('hello'), v: z.literal(PROTOCOL_VERSION), token: z.string().min(20).max(200) }).strict(),
+  // mode 'send': this session cannot show a pushed signal (the VS Code panel), so the Hub lets it send
+  // but never delivers to it and does not count it as online.
+  z.object({ op: z.literal('hello'), v: z.literal(PROTOCOL_VERSION), token: z.string().min(20).max(200), mode: z.enum(['full', 'send']).default('full') }).strict(),
   // `ref` is the Link's own correlation id for matching the `sent` / `rejected` reply.
   z.object({ op: z.literal('send'), ref: z.string().min(1).max(40), msg: z.unknown() }).strict(),
   z.object({ op: z.literal('ack'), id: MessageId }).strict(),

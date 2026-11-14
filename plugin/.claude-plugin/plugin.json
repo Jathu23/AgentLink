@@ -1,6 +1,6 @@
 {
   "name": "agentlink",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Live signals between Claude Code agents: pushes incoming signals into the session and adds one tool to send them",
   "mcpServers": {
     "agentlink": {

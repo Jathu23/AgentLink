@@ -17,6 +17,8 @@ export type HubClientOptions = {
   retryMs?: number
   maxRetryMs?: number
   replyTimeoutMs?: number
+  /** 'send' for a session that cannot show a pushed signal: it sends, and never receives. Default 'full'. */
+  mode?: 'full' | 'send'
   /** How often to ping the Hub. A connection with no frame for 2.5 pings is treated as dead and reopened. */
   pingMs?: number
 }
@@ -87,7 +89,7 @@ export class HubClient {
   private connect(): void {
     const ws = new WebSocket(this.opts.url)
     this.ws = ws
-    ws.on('open', () => ws.send(JSON.stringify({ op: 'hello', v: PROTOCOL_VERSION, token: this.opts.token })))
+    ws.on('open', () => ws.send(JSON.stringify({ op: 'hello', v: PROTOCOL_VERSION, token: this.opts.token, mode: this.opts.mode ?? 'full' })))
     const pingMs = this.opts.pingMs ?? 30_000
     let lastFrame = Date.now()
     // A sleeping laptop or a dropped tunnel leaves a socket that looks open; the ping finds out.

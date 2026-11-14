@@ -22272,7 +22272,9 @@ function signalMeta(env) {
 var PRESENCE_STATES = ["idle", "working"];
 var ClientFrame = external_exports.discriminatedUnion("op", [
   // The token travels in the first frame, not in the URL, so it never lands in a host's access log.
-  external_exports.object({ op: external_exports.literal("hello"), v: external_exports.literal(PROTOCOL_VERSION), token: external_exports.string().min(20).max(200) }).strict(),
+  // mode 'send': this session cannot show a pushed signal (the VS Code panel), so the Hub lets it send
+  // but never delivers to it and does not count it as online.
+  external_exports.object({ op: external_exports.literal("hello"), v: external_exports.literal(PROTOCOL_VERSION), token: external_exports.string().min(20).max(200), mode: external_exports.enum(["full", "send"]).default("full") }).strict(),
   // `ref` is the Link's own correlation id for matching the `sent` / `rejected` reply.
   external_exports.object({ op: external_exports.literal("send"), ref: external_exports.string().min(1).max(40), msg: external_exports.unknown() }).strict(),
   external_exports.object({ op: external_exports.literal("ack"), id: MessageId }).strict(),
@@ -22371,7 +22373,7 @@ var HubClient = class {
   connect() {
     const ws = new import_websocket.default(this.opts.url);
     this.ws = ws;
-    ws.on("open", () => ws.send(JSON.stringify({ op: "hello", v: PROTOCOL_VERSION, token: this.opts.token })));
+    ws.on("open", () => ws.send(JSON.stringify({ op: "hello", v: PROTOCOL_VERSION, token: this.opts.token, mode: this.opts.mode ?? "full" })));
     const pingMs = this.opts.pingMs ?? 3e4;
     let lastFrame = Date.now();
     const pinger = setInterval(() => {
@@ -22467,9 +22469,11 @@ var mcp = new Server(
   }
 );
 var config2 = loadConfig();
+var receive = process.env.AGENTLINK_RECEIVE === "1";
 var client = config2.hub && config2.token ? new HubClient({
   url: config2.hub,
   token: config2.token,
+  mode: receive ? "full" : "send",
   log,
   onDeliver: (env) => mcp.notification({
     method: "notifications/claude/channel",
@@ -22510,5 +22514,5 @@ mcp.setRequestHandler(CallToolRequestSchema, async (req) => {
   return { content: [{ type: "text", text: describe(result) }], isError: !result.ok };
 });
 await mcp.connect(new StdioServerTransport());
-log(client ? `link started, hub ${config2.hub}` : "link started without config");
+log(client ? `link started (${receive ? "receiving" : "send only"}), hub ${config2.hub}` : "link started without config");
 client?.start();

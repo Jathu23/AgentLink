@@ -51,7 +51,13 @@ $json = @{ hub = $Hub; token = $Token } | ConvertTo-Json
 [IO.File]::WriteAllText((Join-Path $dir 'config.json'), $json, (New-Object Text.UTF8Encoding $false))
 Write-Host "Saved $dir\config.json (this file stays on this laptop, never in a repo)"
 
+# The receiving session: a terminal Claude with the channel flag. AGENTLINK_RECEIVE tells the Link
+# that this session can show pushed signals; every other session on this laptop only sends.
+$launcher = Join-Path $dir 'agentlink.cmd'
+[IO.File]::WriteAllText($launcher, "@echo off`r`nset AGENTLINK_RECEIVE=1`r`nclaude --dangerously-load-development-channels plugin:agentlink@agentlink %*`r`n", (New-Object Text.ASCIIEncoding))
+
 Step 'Done'
-Write-Host 'Start Claude Code in a terminal (not the VS Code panel) with:'
-Write-Host '  claude --dangerously-load-development-channels plugin:agentlink@agentlink' -ForegroundColor Green
+Write-Host 'To RECEIVE signals, start Claude in a terminal (the VS Code terminal is fine) with:'
+Write-Host "  & `"$launcher`"" -ForegroundColor Green
+Write-Host 'Any other Claude session on this laptop, the VS Code panel included, can send signals but not receive them.'
 Write-Host "Connection log: $dir\link.log"

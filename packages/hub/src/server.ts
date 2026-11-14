@@ -37,6 +37,7 @@ export function startServer(hub: Hub, port: number, host = '127.0.0.1'): Promise
 
   wss.on('connection', (ws) => {
     let agent: Agent | undefined
+    let sendOnly = false
     const conn: Conn = {
       send: (frame: HubFrame) => ws.readyState === ws.OPEN && ws.send(JSON.stringify(frame)),
       close: () => ws.close(4000, 'replaced by a newer connection'),
@@ -52,14 +53,16 @@ export function startServer(hub: Hub, port: number, host = '127.0.0.1'): Promise
       } catch {
         return ws.close(4400, 'not json')
       }
-      if (agent) return hub.onFrame(agent, raw)
+      if (agent) return hub.onFrame(agent, raw, sendOnly ? conn : undefined)
 
       const hello = ClientFrame.safeParse(raw)
       const found = hello.success && hello.data.op === 'hello' ? hub.auth(hello.data.token) : undefined
       if (!found) return ws.close(4401, 'bad token')
       clearTimeout(helloTimer)
       agent = found
-      hub.attach(agent, conn)
+      sendOnly = hello.success && hello.data.op === 'hello' && hello.data.mode === 'send'
+      if (sendOnly) hub.welcomeSender(agent, conn)
+      else hub.attach(agent, conn)
     })
 
     ws.on('close', () => {

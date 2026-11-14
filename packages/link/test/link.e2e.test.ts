@@ -41,7 +41,7 @@ for (const [name, args] of entries) test(`the Link process (${name}): the signal
         command: process.execPath,
         args,
         cwd: path.join(here, '../../..'),
-        env: { ...(process.env as Record<string, string>), AGENTLINK_HUB: url, AGENTLINK_TOKEN: memberToken, USERPROFILE: home, HOME: home },
+        env: { ...(process.env as Record<string, string>), AGENTLINK_HUB: url, AGENTLINK_TOKEN: memberToken, AGENTLINK_RECEIVE: '1', USERPROFILE: home, HOME: home },
       }),
     )
     assert.deepEqual((await session.listTools()).tools.map((t) => t.name), ['signal'])

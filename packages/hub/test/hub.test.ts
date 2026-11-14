@@ -119,6 +119,27 @@ test('a lead broadcast goes to every member of the space and nobody else', () =>
   assert.deepEqual([a.of('deliver').length, b.of('deliver').length, c.of('deliver').length], [1, 1, 0])
 })
 
+test('a send-only connection can send, but gets nothing and is not online', () => {
+  const { hub } = setup()
+  const desk = connect(hub, lead)
+  const frames: HubFrame[] = []
+  const panel: Conn = { send: (f) => void frames.push(f), close: () => {} }
+  hub.welcomeSender(laptop2, panel)
+  hub.onFrame(laptop2, { op: 'send', ref: 'p', msg: question }, panel)
+  assert.equal(frames.at(-1)?.op, 'sent')
+  assert.equal(desk.of('deliver')[0]?.msg.from, 'laptop2')
+
+  assert.equal(hub.snapshot('backend').agents.find((a) => a.id === 'laptop2')?.presence, 'offline')
+  const reply = desk.send({ to: 'laptop2', type: 'answer', refs: { question: 'Q-25', commit: 'abc1234' } })
+  assert.equal(reply.op === 'sent' && reply.online, false)
+  assert.equal(frames.filter((f) => f.op === 'deliver').length, 0)
+  assert.equal(hub.store.pending('laptop2').length, 1)
+
+  hub.onFrame(laptop2, { op: 'ack', id: hub.store.pending('laptop2')[0]!.id }, panel)
+  assert.equal(hub.store.pending('laptop2').length, 1, 'a send-only connection cannot confirm a delivery')
+  assert.equal(connect(hub, laptop2).of('deliver').length, 1)
+})
+
 test('a flood from one agent is cut off', () => {
   const { hub } = setup()
   connect(hub, lead)
