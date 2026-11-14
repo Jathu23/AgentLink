@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "description": "Stores signals, pushes them to connected Links, keeps them while a laptop is off",
-  "exports": "./src/hub.ts",
+  "exports": {
+    ".": "./src/hub.ts",
+    "./server": "./src/server.ts"
+  },
   "scripts": {
     "start": "node --import tsx src/cli.ts start"
   },

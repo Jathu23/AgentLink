@@ -1,0 +1,17 @@
+{
+  "name": "@agentlink/link",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Runs beside a Claude Code session: pushes incoming signals into it and gives it one tool to send them",
+  "exports": "./src/client.ts",
+  "dependencies": {
+    "@agentlink/protocol": "*",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@agentlink/hub": "*",
+    "@types/ws": "^8.5.13"
+  }
+}
