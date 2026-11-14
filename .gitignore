@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.log
+# Local Hub data and per-laptop config (tokens) never go into git.
+*.sqlite
+*.sqlite-*
+.agentlink/
+.env
+.env.*

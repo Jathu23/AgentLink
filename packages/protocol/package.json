@@ -1,0 +1,11 @@
+{
+  "name": "@agentlink/protocol",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The message contract shared by the Hub and every Link",
+  "exports": "./src/index.ts",
+  "dependencies": {
+    "zod": "^3.25.0"
+  }
+}
