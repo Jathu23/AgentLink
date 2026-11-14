@@ -22279,7 +22279,9 @@ var ClientFrame = external_exports.discriminatedUnion("op", [
   external_exports.object({ op: external_exports.literal("send"), ref: external_exports.string().min(1).max(40), msg: external_exports.unknown() }).strict(),
   external_exports.object({ op: external_exports.literal("ack"), id: MessageId }).strict(),
   external_exports.object({ op: external_exports.literal("presence"), state: external_exports.enum(PRESENCE_STATES), task: RefId.optional() }).strict(),
-  external_exports.object({ op: external_exports.literal("ping") }).strict()
+  external_exports.object({ op: external_exports.literal("ping") }).strict(),
+  // Pull instead of push: hand over everything waiting for this agent, and count it as received.
+  external_exports.object({ op: external_exports.literal("fetch"), ref: external_exports.string().min(1).max(40) }).strict()
 ]);
 var HubFrame = external_exports.discriminatedUnion("op", [
   external_exports.object({
@@ -22300,7 +22302,8 @@ var HubFrame = external_exports.discriminatedUnion("op", [
     online: external_exports.boolean()
   }).strict(),
   external_exports.object({ op: external_exports.literal("rejected"), ref: external_exports.string().optional(), code: external_exports.string(), reason: external_exports.string() }).strict(),
-  external_exports.object({ op: external_exports.literal("pong") }).strict()
+  external_exports.object({ op: external_exports.literal("pong") }).strict(),
+  external_exports.object({ op: external_exports.literal("inbox"), ref: external_exports.string(), msgs: external_exports.array(Envelope) }).strict()
 ]);
 var PING_TEXT = '{"op":"ping"}';
 
@@ -22332,6 +22335,7 @@ var HubClient = class {
   timer;
   seq = 0;
   waiters = /* @__PURE__ */ new Map();
+  inboxWaiters = /* @__PURE__ */ new Map();
   queue = [];
   seen = /* @__PURE__ */ new Set();
   start() {
@@ -22354,6 +22358,23 @@ var HubClient = class {
       return { ok: true, state: "queued" };
     }
     return this.transmit(msg);
+  }
+  /** Everything waiting for this agent at the Hub. For a session that cannot be pushed to. Undefined when the Hub is not reachable. */
+  fetchInbox() {
+    if (!this.online || !this.ws) return Promise.resolve(void 0);
+    const ref = `i${++this.seq}`;
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.inboxWaiters.delete(ref);
+        resolve(void 0);
+      }, this.opts.replyTimeoutMs ?? 1e4);
+      this.inboxWaiters.set(ref, (msgs) => {
+        clearTimeout(timer);
+        this.inboxWaiters.delete(ref);
+        resolve(msgs);
+      });
+      this.ws.send(JSON.stringify({ op: "fetch", ref }));
+    });
   }
   transmit(msg) {
     const ref = String(++this.seq);
@@ -22431,6 +22452,8 @@ var HubClient = class {
       }
       case "pong":
         return;
+      case "inbox":
+        return this.inboxWaiters.get(frame.ref)?.(frame.msgs);
       case "sent":
         return this.waiters.get(frame.ref)?.({ ok: true, state: frame.online ? "delivered" : "stored" });
       case "rejected":
@@ -22499,12 +22522,23 @@ mcp.setRequestHandler(ListToolsRequestSchema, async () => ({
         },
         required: ["type"]
       }
+    },
+    {
+      name: "inbox",
+      description: "Read the signals waiting for this agent (answers and other messages from the lead). Use it in a session that is not woken by signals, such as the VS Code panel: when you come back to a task that was waiting on the lead, and when the user asks whether anything arrived. Each signal is returned once.",
+      inputSchema: { type: "object", properties: {} }
     }
   ]
 }));
 var describe = (r) => !r.ok ? `not sent (${r.code}): ${r.reason}` : r.state === "delivered" ? "sent, the receiver is online" : r.state === "stored" ? "sent, the receiver is offline and gets it on connecting" : "queued, the Hub is not reachable; it goes out on reconnect. The content is in git, so carry on with work that is not blocked";
 mcp.setRequestHandler(CallToolRequestSchema, async (req) => {
-  if (req.params.name !== "signal") throw new Error(`unknown tool: ${req.params.name}`);
+  if (req.params.name !== "signal" && req.params.name !== "inbox") throw new Error(`unknown tool: ${req.params.name}`);
+  if (client && req.params.name === "inbox") {
+    const msgs = await client.fetchInbox();
+    const text = msgs === void 0 ? "the Hub is not reachable right now; git still has every answer" : msgs.length === 0 ? "nothing waiting" : msgs.map((m) => `from ${m.from}: ${renderSignal(m)}`).join("\n");
+    log(`inbox: ${msgs === void 0 ? "unreachable" : msgs.length}`);
+    return { content: [{ type: "text", text }] };
+  }
   if (!client) {
     return { content: [{ type: "text", text: `not configured: put { "hub", "token" } in ${path.join(home, "config.json")}` }], isError: true };
   }

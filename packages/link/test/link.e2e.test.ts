@@ -44,7 +44,7 @@ for (const [name, args] of entries) test(`the Link process (${name}): the signal
         env: { ...(process.env as Record<string, string>), AGENTLINK_HUB: url, AGENTLINK_TOKEN: memberToken, AGENTLINK_RECEIVE: '1', USERPROFILE: home, HOME: home },
       }),
     )
-    assert.deepEqual((await session.listTools()).tools.map((t) => t.name), ['signal'])
+    assert.deepEqual((await session.listTools()).tools.map((t) => t.name), ['signal', 'inbox'])
 
     const until = async (cond: () => boolean, what: string) => {
       const end = Date.now() + 5000

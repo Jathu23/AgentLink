@@ -51,20 +51,20 @@ node cloudflare/admin.mjs remove-agent laptop2      # then add-agent again for a
 
 ## Set up a laptop
 
-Needs Node 22.13 or later, Claude Code and git. In PowerShell:
+Needs Node 22.13 or later and the Claude Code terminal command (`claude`). Double-click `kit/agentlink-setup.bat`, or run in PowerShell:
 
 ```powershell
-git clone https://github.com/Jathu23/AgentLink.git
-.AgentLinkkitinstall.ps1 -Hub wss://<hub-host>/ws -Token <token from add-agent>
+irm https://raw.githubusercontent.com/Jathu23/AgentLink/main/kit/setup.ps1 | iex
 ```
 
-The script installs the plugin from the clone and saves the Hub address and token in `~/.agentlink/config.json` (never in a repo). Then start Claude Code in a terminal:
+It installs the plugin, asks for your token, checks it with the Hub, saves it in `~/.agentlink/config.json` (never in a repo) and puts an **AgentLink** shortcut on the Desktop. Run it again to update.
 
-```powershell
-claude --dangerously-load-development-channels plugin:agentlink@agentlink
-```
+| Session | Sends | Receives |
+|---|---|---|
+| Any Claude Code session, the VS Code panel included | `signal` tool | `inbox` tool, when asked |
+| The Desktop shortcut (terminal session with the channel flag) | `signal` tool | pushed as they arrive, wakes the session |
 
-To update later: `git pull` in the clone and run the script again. The Link logs to `~/.agentlink/link.log`.
+The Link logs to `~/.agentlink/link.log`.
 
 ## Develop
 
@@ -73,4 +73,4 @@ npm test          # builds the plugin bundle, then runs every test
 npm run typecheck
 ```
 
-After a change to the Link, bump `version` in `plugin/.claude-plugin/plugin.json` so installed laptops pick it up with `claude plugin update agentlink@agentlink`.
+After a change to the Link, bump `version` in `plugin/.claude-plugin/plugin.json`; laptops pick it up when they run the setup again.

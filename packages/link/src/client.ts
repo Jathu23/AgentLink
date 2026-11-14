@@ -38,6 +38,7 @@ export class HubClient {
   private timer: NodeJS.Timeout | undefined
   private seq = 0
   private waiters = new Map<string, (r: SendResult) => void>()
+  private inboxWaiters = new Map<string, (msgs: Envelope[]) => void>()
   private queue: unknown[] = []
   private seen = new Set<string>()
 
@@ -68,6 +69,24 @@ export class HubClient {
       return { ok: true, state: 'queued' }
     }
     return this.transmit(msg)
+  }
+
+  /** Everything waiting for this agent at the Hub. For a session that cannot be pushed to. Undefined when the Hub is not reachable. */
+  fetchInbox(): Promise<Envelope[] | undefined> {
+    if (!this.online || !this.ws) return Promise.resolve(undefined)
+    const ref = `i${++this.seq}`
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this.inboxWaiters.delete(ref)
+        resolve(undefined)
+      }, this.opts.replyTimeoutMs ?? 10_000)
+      this.inboxWaiters.set(ref, (msgs) => {
+        clearTimeout(timer)
+        this.inboxWaiters.delete(ref)
+        resolve(msgs)
+      })
+      this.ws!.send(JSON.stringify({ op: 'fetch', ref }))
+    })
   }
 
   private transmit(msg: unknown): Promise<SendResult> {
@@ -149,6 +168,8 @@ export class HubClient {
       }
       case 'pong':
         return
+      case 'inbox':
+        return this.inboxWaiters.get(frame.ref)?.(frame.msgs)
       case 'sent':
         return this.waiters.get(frame.ref)?.({ ok: true, state: frame.online ? 'delivered' : 'stored' })
       case 'rejected':

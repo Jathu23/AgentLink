@@ -216,6 +216,8 @@ export const ClientFrame = z.discriminatedUnion('op', [
   z.object({ op: z.literal('ack'), id: MessageId }).strict(),
   z.object({ op: z.literal('presence'), state: z.enum(PRESENCE_STATES), task: RefId.optional() }).strict(),
   z.object({ op: z.literal('ping') }).strict(),
+  // Pull instead of push: hand over everything waiting for this agent, and count it as received.
+  z.object({ op: z.literal('fetch'), ref: z.string().min(1).max(40) }).strict(),
 ])
 export type ClientFrame = z.infer<typeof ClientFrame>
 
@@ -244,6 +246,7 @@ export const HubFrame = z.discriminatedUnion('op', [
     .strict(),
   z.object({ op: z.literal('rejected'), ref: z.string().optional(), code: z.string(), reason: z.string() }).strict(),
   z.object({ op: z.literal('pong') }).strict(),
+  z.object({ op: z.literal('inbox'), ref: z.string(), msgs: z.array(Envelope) }).strict(),
 ])
 export type HubFrame = z.infer<typeof HubFrame>
 

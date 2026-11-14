@@ -83,9 +83,14 @@ export class Hub {
     if (!parsed.success) return conn.send({ op: 'rejected', code: 'invalid', reason: 'unknown or malformed frame' })
     const frame = parsed.data
     if (frame.op === 'ping') return conn.send({ op: 'pong' })
-    if (via && frame.op !== 'send') return
+    if (via && frame.op !== 'send' && frame.op !== 'fetch') return
     this.store.updateAgent(agent.id, { lastSeen: this.now().toISOString() })
     switch (frame.op) {
+      case 'fetch': {
+        const msgs = this.store.pending(agent.id)
+        for (const msg of msgs) this.store.ack(agent.id, msg.id)
+        return conn.send({ op: 'inbox', ref: frame.ref, msgs })
+      }
       case 'hello':
         return conn.send({ op: 'rejected', code: 'invalid', reason: 'already connected' })
       case 'ack':

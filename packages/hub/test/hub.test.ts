@@ -137,7 +137,13 @@ test('a send-only connection can send, but gets nothing and is not online', () =
 
   hub.onFrame(laptop2, { op: 'ack', id: hub.store.pending('laptop2')[0]!.id }, panel)
   assert.equal(hub.store.pending('laptop2').length, 1, 'a send-only connection cannot confirm a delivery')
-  assert.equal(connect(hub, laptop2).of('deliver').length, 1)
+
+  hub.onFrame(laptop2, { op: 'fetch', ref: 'f' }, panel)
+  const inbox = frames.at(-1)
+  assert.equal(inbox?.op === 'inbox' && inbox.msgs.length, 1)
+  assert.equal(inbox?.op === 'inbox' && inbox.msgs[0]?.type, 'answer')
+  assert.equal(hub.store.pending('laptop2').length, 0, 'what the inbox handed over is not sent again')
+  assert.equal(connect(hub, laptop2).of('deliver').length, 0)
 })
 
 test('a flood from one agent is cut off', () => {

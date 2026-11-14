@@ -89,6 +89,13 @@ mcp.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ['type'],
       },
     },
+    {
+      name: 'inbox',
+      description:
+        'Read the signals waiting for this agent (answers and other messages from the lead). Use it in a session that is not woken by signals, ' +
+        'such as the VS Code panel: when you come back to a task that was waiting on the lead, and when the user asks whether anything arrived. Each signal is returned once.',
+      inputSchema: { type: 'object', properties: {} },
+    },
   ],
 }))
 
@@ -99,7 +106,16 @@ const describe = (r: SendResult): string =>
   : 'queued, the Hub is not reachable; it goes out on reconnect. The content is in git, so carry on with work that is not blocked'
 
 mcp.setRequestHandler(CallToolRequestSchema, async (req) => {
-  if (req.params.name !== 'signal') throw new Error(`unknown tool: ${req.params.name}`)
+  if (req.params.name !== 'signal' && req.params.name !== 'inbox') throw new Error(`unknown tool: ${req.params.name}`)
+  if (client && req.params.name === 'inbox') {
+    const msgs = await client.fetchInbox()
+    const text =
+      msgs === undefined ? 'the Hub is not reachable right now; git still has every answer'
+      : msgs.length === 0 ? 'nothing waiting'
+      : msgs.map((m) => `from ${m.from}: ${renderSignal(m)}`).join('\n')
+    log(`inbox: ${msgs === undefined ? 'unreachable' : msgs.length}`)
+    return { content: [{ type: 'text', text }] }
+  }
   if (!client) {
     return { content: [{ type: 'text', text: `not configured: put { "hub", "token" } in ${path.join(home, 'config.json')}` }], isError: true }
   }
